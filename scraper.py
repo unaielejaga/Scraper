@@ -1,13 +1,26 @@
+from asyncio.windows_events import NULL
 from bs4 import BeautifulSoup
 import requests
-import json
 
-web = 'https://www.recetasderechupete.com/zaatar-la-mezcla-de-especias-que-dara-un-toque-arabe-a-tus-recetas/44836/'
+class Receta:
+    def __init__(self, nombre, dificultad, duracion, comensales, ingredientes, descripcion):
+        self.nombre = nombre
+        self.dificultad = dificultad
+        self.duracion = duracion
+        self.comensales = comensales
+        self.ingredientes = ingredientes
+        self.descripcion = descripcion
+    def __str__(self):
+        stringre = "\t"
+        for i in self.ingredientes:
+            stringre = stringre + '\n\tCantidad: ' + str(i[0][0]) + ', Unidad: ' + str(i[0][1]) + ', Ingrediente: ' + str(i[1])
+        return 'Nombre: ' + str(self.nombre) + '\n' + 'Dificultad: ' + str(self.dificultad) + '\n' + 'Duracion: ' + str(self.duracion) + '\n' + 'Comensales: ' + str(self.comensales) + '\n' + 'Ingredientes: ' + stringre + '\n Descripcion: ' + str(self.descripcion) + '\n'
+        
+web = 'https://www.recetasderechupete.com/quiche-lorraine-receta-de-cocina-francesa/8634/'
 resultado = requests.get(web)
 sopa = BeautifulSoup(resultado.text, 'lxml')
 
 receta = (sopa.find('header').find('h1').text).strip()
-print(receta)
 
 spans = [] 
 tag = sopa.find('div', class_='rdr-eat')
@@ -16,9 +29,6 @@ for span in tag.find_all('span', class_='rdr-tag'):
 dificultad = spans[0]
 duracion = spans[1]
 comensales = spans[2]
-print(dificultad)
-print(duracion)
-print(comensales)
 
 ingredientes = []
 ingresopa = sopa.find('div', id='ingredients').find('ul')
@@ -37,14 +47,15 @@ for li in ingresopa.find_all('li'):
             ingre[0] = (ingre[0].split(": "))[1]
             ingre[0] = ingre[0].split(" ")
     ingredientes.append(ingre)
-print(ingredientes)
 
 descripcion = sopa.find('div', id='description')
-
 descrip = []
 for ol in descripcion.find_all('ol'):
     for li in ol.find_all('li'):
         descrip.append(' '.join(li.text.split("\xa0")))
 descrip = ' '.join(descrip)
-print(descrip)
+
+
+recetafinal = Receta(receta, dificultad, duracion, comensales, ingredientes, descrip)
+print(str(recetafinal))
 
