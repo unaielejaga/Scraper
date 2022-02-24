@@ -1,20 +1,25 @@
 from asyncio import FIRST_EXCEPTION
 from bs4 import BeautifulSoup
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize, sent_tokenize
 import requests
 
+stop_words = set(stopwords.words('spanish'))
+
 class Receta:
-    def __init__(self, nombre, dificultad, duracion, comensales, ingredientes, descripcion):
+    def __init__(self, nombre, dificultad, duracion, comensales, ingredientes, descripcion, url):
         self.nombre = nombre
         self.dificultad = dificultad
         self.duracion = duracion
         self.comensales = comensales
         self.ingredientes = ingredientes
         self.descripcion = descripcion
+        self.url = url
     def __str__(self):
         stringre = "\t"
         for i in self.ingredientes:
             stringre = stringre + '\n\tCantidad: ' + str(i[0][0]) + ', Unidad: ' + str(i[0][1]) + ', Ingrediente: ' + str(i[1])
-        return 'Nombre: ' + str(self.nombre) + '\n' + 'Dificultad: ' + str(self.dificultad) + '\n' + 'Duracion: ' + str(self.duracion) + '\n' + 'Comensales: ' + str(self.comensales) + '\n' + 'Ingredientes: ' + stringre + '\nDescripcion: ' + str(self.descripcion) + '\n'
+        return 'Nombre: ' + str(self.nombre) + '\n' + 'Dificultad: ' + str(self.dificultad) + '\n' + 'Duracion: ' + str(self.duracion) + '\n' + 'Comensales: ' + str(self.comensales) + '\n' + 'Ingredientes: ' + stringre + '\nDescripcion: ' + str(self.descripcion) + '\nURL: ' + str(self.url) + '\n'
 
 url = 'https://www.recetasderechupete.com/recetas-faciles/'
 
@@ -56,6 +61,13 @@ for link in soup.find('div', class_='grid').find_all('a'):
                 else:
                     ingre[0] = (ingre[0].split(": "))[1]
                     ingre[0] = ingre[0].split(" ")
+            
+            tokenize_words = word_tokenize(ingre[1])
+            texto_sinSW = []
+            for word in tokenize_words:
+                if word not in stop_words:
+                    texto_sinSW.append(word)
+            ingre[1] = ' '.join(texto_sinSW)
             ingredientes.append(ingre)
 
         descripcion = sopa.find('div', id='description')
@@ -66,7 +78,7 @@ for link in soup.find('div', class_='grid').find_all('a'):
         descrip = ' '.join(descrip)
 
 
-        recetafinal = Receta(receta, dificultad, duracion, comensales, ingredientes, descrip)
+        recetafinal = Receta(receta, dificultad, duracion, comensales, ingredientes, descrip, link_url)
         print(str(recetafinal))
         print("=======================================================================================================")
     except IndexError:
