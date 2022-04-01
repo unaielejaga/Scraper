@@ -1,13 +1,17 @@
 from asyncio import FIRST_EXCEPTION
+from asyncio.windows_events import NULL
 from bs4 import BeautifulSoup
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize, sent_tokenize
 import requests
+import firebase_admin
+from firebase_admin import credentials
+from firebase_admin import db
 
 stop_words = set(stopwords.words('spanish'))
 
 class Receta:
-    def __init__(self, nombre, dificultad, duracion, comensales, ingredientes, descripcion, url):
+    def __init__(self, nombre, dificultad, duracion, comensales, ingredientes, descripcion, url, imagen):
         self.nombre = nombre
         self.dificultad = dificultad
         self.duracion = duracion
@@ -15,6 +19,7 @@ class Receta:
         self.ingredientes = ingredientes
         self.descripcion = descripcion
         self.url = url
+        self.imagen = imagen
     def __str__(self):
         stringre = "\t"
         for i in self.ingredientes:
@@ -26,8 +31,21 @@ url = 'https://www.recetasderechupete.com/recetas-faciles/'
 response = requests.get(url)
 data = response.text
 soup = BeautifulSoup(data, 'lxml')
+contador_recetas = 1
+
+cred = credentials.Certificate('firebase-sdk.json')
+
+firebase_admin.initialize_app(cred, {
+
+    'databaseURL': 'https://my-app-20856-default-rtdb.europe-west1.firebasedatabase.app/'
+})
+
+ref = db.reference('/recetas')
+
+envio_receta_final = {}
 
 for link in soup.find('div', class_='grid').find_all('a'):
+    
     link_url = link.get('href')
 
     try:
@@ -36,6 +54,12 @@ for link in soup.find('div', class_='grid').find_all('a'):
         sopa = BeautifulSoup(resultado.text, 'lxml')
 
         receta = (sopa.find('header').find('h1').text).strip()
+        try:
+            imagen = (sopa.find('img', class_='mainphoto rdr-image wp-post-image').attrs['src'])
+        except:
+            imagen = 'https://img.icons8.com/ios-glyphs/50/000000/no-image.png'
+
+        print(imagen)
 
         spans = [] 
         tag = sopa.find('div', class_='rdr-eat')
@@ -78,8 +102,39 @@ for link in soup.find('div', class_='grid').find_all('a'):
         descrip = ' '.join(descrip)
 
 
-        recetafinal = Receta(receta, dificultad, duracion, comensales, ingredientes, descrip, link_url)
-        print(str(recetafinal))
+        recetafinal = Receta(receta, dificultad, duracion, comensales, ingredientes, descrip, link_url, imagen)
+        envio_ingrediente = {}
+        contador_ingrediente = 1
+        for ingrediente in ingredientes:
+            dict_ingrediente ={
+                'ingrediente'+str(contador_ingrediente):{
+                    'nombre': ingrediente[1],
+                    'cantidad': ingrediente[0][0],
+                    'unidad': ingrediente[0][1]
+                },
+            }
+            envio_ingrediente.update(dict_ingrediente)
+            contador_ingrediente+=1
+        
+        envio_receta = {
+            'receta'+str(contador_recetas):{
+                'nombre': recetafinal.nombre,
+                'dificultad': recetafinal.dificultad,
+                'duracion': recetafinal.duracion,
+                'comensales': recetafinal.comensales,
+                'descripcion': recetafinal.descripcion,
+                'url': recetafinal.url,
+                'ingredientes': envio_ingrediente,
+                'receta': 'receta'+str(contador_recetas),
+                'imagen': recetafinal.imagen
+            }
+        }
+        envio_receta_final.update(envio_receta)
+        if(contador_recetas == 80):
+            ref.set(envio_receta_final)
+            break
+        print("Envio receta " + str(contador_recetas))
+        contador_recetas+=1
         print("=======================================================================================================")
     except IndexError:
         print("Receta incorrecta")
